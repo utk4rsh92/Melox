@@ -1,16 +1,61 @@
-# melox
+# 🎵 Melox – Flutter MP3 Player
 
-A new Flutter project.
+Melox is a simple, fast, and elegant **MP3 music player built with Flutter**.
+The app allows users to play and manage music stored on their device with a clean and responsive interface.
 
-## Getting Started
+## ✨ Features
 
-This project is a starting point for a Flutter application.
+* 🎧 Play local MP3 audio files
+* 📂 Automatically scan and display songs from device storage
+* ⏯️ Basic music controls (Play, Pause, Next, Previous)
+* 📜 Song list with easy navigation
+* 🎨 Smooth and minimal user interface
+* 📱 Built with Flutter for cross-platform compatibility
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 Built With
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+* **Flutter**
+* **Dart**
+* Android Media APIs
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📱 Platform Support
+
+* Android
+
+## 📦 Installation
+
+1. Clone the repository
+
+```
+git clone https://github.com/utk4rsh92/melox.git
+```
+
+2. Navigate to the project directory
+
+```
+cd melox
+```
+
+3. Install dependencies
+
+```
+flutter pub get
+```
+
+4. Run the app
+
+```
+flutter run
+```
+
+## 🎯 Goal of the Project
+
+Melox was created to demonstrate how Flutter can be used to build a smooth and functional **local music player application** with modern UI and efficient audio playback.
+
+## 🤝 Contributions
+
+Contributions, suggestions, and improvements are welcome.
+
+## 📄 License
+
+This project is open-source and available under the MIT License.
