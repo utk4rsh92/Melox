@@ -11,15 +11,15 @@ import '../../widgets/album_art.dart';
 import '../../widgets/song_tile.dart';
 
 final _sortOptions = ['Title', 'Artist', 'Album', 'Date added'];
-final _selectedSortProvider = NotifierProvider<_SortNotifier, int>(_SortNotifier.new);
-final _showFavoritesProvider = NotifierProvider<_FavNotifier, bool>(_FavNotifier.new);
+//final _selectedSortProvider = NotifierProvider<_SortNotifier, int>(_SortNotifier.new);
+//final _showFavoritesProvider = NotifierProvider<_FavNotifier, bool>(_FavNotifier.new);
 
-class _SortNotifier extends Notifier<int> {
-  @override int build() => 0;
-}
-class _FavNotifier extends Notifier<bool> {
-  @override bool build() => false;
-}
+// class _SortNotifier extends Notifier<int> {
+//   @override int build() => 0;
+// }
+// class _FavNotifier extends Notifier<bool> {
+//   @override bool build() => false;
+// }
 
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
@@ -203,8 +203,8 @@ class _SortBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accent = Theme.of(context).colorScheme.primary;
-    final selected = ref.watch(_selectedSortProvider);
-    final showFavorites = ref.watch(_showFavoritesProvider);
+    final selected = ref.watch(selectedSortProvider);       // ← public
+    final showFavorites = ref.watch(showFavoritesProvider); // ← public
 
     return SizedBox(
       height: 44,
@@ -224,9 +224,9 @@ class _SortBar extends ConsumerWidget {
               label: const Text('Favorites'),
               selected: showFavorites,
               onSelected: (_) => ref
-                  .read(_showFavoritesProvider.notifier)
+                  .read(showFavoritesProvider.notifier)  // ← public
                   .state = !showFavorites,
-              selectedColor: accent.withOpacity(0.2),          // ← themed
+              selectedColor: accent.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: showFavorites ? accent : AppTheme.textSecondary,
                 fontSize: 13,
@@ -248,10 +248,10 @@ class _SortBar extends ConsumerWidget {
                 label: Text(_sortOptions[i]),
                 selected: isSelected,
                 onSelected: (_) {
-                  ref.read(_showFavoritesProvider.notifier).state = false;
-                  ref.read(_selectedSortProvider.notifier).state = i;
+                  ref.read(showFavoritesProvider.notifier).state = false; // ← public
+                  ref.read(selectedSortProvider.notifier).state = i;      // ← public
                 },
-                selectedColor: accent.withOpacity(0.2),        // ← themed
+                selectedColor: accent.withValues(alpha: 0.2),
                 labelStyle: TextStyle(
                   color: isSelected ? accent : AppTheme.textSecondary,
                   fontSize: 13,

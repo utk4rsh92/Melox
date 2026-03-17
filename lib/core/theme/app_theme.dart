@@ -3,98 +3,103 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// ── Theme definitions ─────────────────────────────────────────
-
 enum MeloxTheme {
+  lime,
   purple,
-  blue,
   green,
-  red,
-  gold,
-  cyan,
+  orange,
+  yellow,
+  pink,
 }
 
 extension MeloxThemeExtension on MeloxTheme {
   String get label => switch (this) {
+    MeloxTheme.lime   => 'Lime',
     MeloxTheme.purple => 'Purple',
-    MeloxTheme.blue   => 'Blue',
     MeloxTheme.green  => 'Green',
-    MeloxTheme.red    => 'Red',
-    MeloxTheme.gold   => 'Gold',
-    MeloxTheme.cyan   => 'Cyan',
+    MeloxTheme.orange => 'Orange',
+    MeloxTheme.yellow => 'Yellow',
+    MeloxTheme.pink   => 'Pink',
   };
 
   Color get primary => switch (this) {
-    MeloxTheme.purple => const Color(0xFFBB86FC),
-    MeloxTheme.blue   => const Color(0xFF6CB4FF),
-    MeloxTheme.green  => const Color(0xFF4CAF7D),
-    MeloxTheme.red    => const Color(0xFFFF6B6B),
-    MeloxTheme.gold   => const Color(0xFFFFBB33),
-    MeloxTheme.cyan   => const Color(0xFF00E5CC),
+    MeloxTheme.lime   => const Color(0xFFC6F54E),
+    MeloxTheme.purple => const Color(0xFFA125DF),
+    MeloxTheme.green  => const Color(0xFF31FF6A),
+    MeloxTheme.orange => const Color(0xFFE25129),
+    MeloxTheme.yellow => const Color(0xFFFEE605),
+    MeloxTheme.pink   => const Color(0xFFFE0183),
   };
 
   Color get primaryDim => switch (this) {
-    MeloxTheme.purple => const Color(0xFF9B59B6),
-    MeloxTheme.blue   => const Color(0xFF4A90D9),
-    MeloxTheme.green  => const Color(0xFF388E5E),
-    MeloxTheme.red    => const Color(0xFFE53935),
-    MeloxTheme.gold   => const Color(0xFFE6A020),
-    MeloxTheme.cyan   => const Color(0xFF00BFA5),
+    MeloxTheme.lime   => const Color(0xFF8FB52E),
+    MeloxTheme.purple => const Color(0xFF7A1AAA),
+    MeloxTheme.green  => const Color(0xFF1FCC4E),
+    MeloxTheme.orange => const Color(0xFFB33D1C),
+    MeloxTheme.yellow => const Color(0xFFCDB800),
+    MeloxTheme.pink   => const Color(0xFFCC0066),
   };
 
-  // Subtle tinted background per theme
   Color get surfaceTint => switch (this) {
-    MeloxTheme.purple => const Color(0xFF1A1025),
-    MeloxTheme.blue   => const Color(0xFF0D1520),
-    MeloxTheme.green  => const Color(0xFF0A1A12),
-    MeloxTheme.red    => const Color(0xFF1A0D0D),
-    MeloxTheme.gold   => const Color(0xFF1A1500),
-    MeloxTheme.cyan   => const Color(0xFF001A18),
+    MeloxTheme.lime   => const Color(0xFF0F1500),
+    MeloxTheme.purple => const Color(0xFF1A0A25),
+    MeloxTheme.green  => const Color(0xFF001A0A),
+    MeloxTheme.orange => const Color(0xFF1A0A00),
+    MeloxTheme.yellow => const Color(0xFF1A1600),
+    MeloxTheme.pink   => const Color(0xFF1A0010),
   };
+
+  // Smart contrast — black for bright colors, white for dark ones
+  Color get onPrimary {
+    final luminance = primary.computeLuminance();
+    return luminance > 0.4 ? Colors.black : Colors.white;
+  }
 }
 
-// ── AppTheme ──────────────────────────────────────────────────
+// ── AppTheme ───────────────────────────────────────────────────
 
 class AppTheme {
-  // Base colors — always dark
-  static const Color background   = Color(0xFF0A0A0A);
-  static const Color surface      = Color(0xFF141414);
-  static const Color surfaceHigh  = Color(0xFF1E1E1E);
-  static const Color textPrimary  = Color(0xFFFFFFFF);
-  static const Color textSecondary= Color(0xFFB3B3B3);
-  static const Color textHint     = Color(0xFF6B6B6B);
-  static const Color divider      = Color(0xFF2A2A2A);
-  static const Color error        = Color(0xFFCF6679);
+  static const Color background    = Color(0xFF0A0A0A);
+  static const Color surface       = Color(0xFF141414);
+  static const Color surfaceHigh   = Color(0xFF1E1E1E);
+  static const Color textPrimary   = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFFB3B3B3);
+  static const Color textHint      = Color(0xFF6B6B6B);
+  static const Color divider       = Color(0xFF2A2A2A);
+  static const Color error         = Color(0xFFCF6679);
 
-  // Default accent (overridden by theme)
-  static const Color primary      = Color(0xFFBB86FC);
+  // Default accent — overridden by active theme
+  static const Color primary = Color(0xFFC6F54E);
 
-  static ThemeData dark({MeloxTheme meloxTheme = MeloxTheme.purple}) {
+  static ThemeData dark({MeloxTheme meloxTheme = MeloxTheme.lime}) {
     final accent = meloxTheme.primary;
+    final onAccent = meloxTheme.onPrimary;
 
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
       colorScheme: ColorScheme.dark(
         primary: accent,
+        onPrimary: onAccent,
         secondary: accent,
+        onSecondary: onAccent,
         surface: surface,
         error: error,
       ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme(
         const TextTheme(
-          displayLarge:  TextStyle(color: textPrimary,    fontSize: 32, fontWeight: FontWeight.w700),
-          displayMedium: TextStyle(color: textPrimary,    fontSize: 28, fontWeight: FontWeight.w700),
-          headlineLarge: TextStyle(color: textPrimary,    fontSize: 24, fontWeight: FontWeight.w600),
-          headlineMedium:TextStyle(color: textPrimary,    fontSize: 20, fontWeight: FontWeight.w600),
-          titleLarge:    TextStyle(color: textPrimary,    fontSize: 18, fontWeight: FontWeight.w600),
-          titleMedium:   TextStyle(color: textPrimary,    fontSize: 16, fontWeight: FontWeight.w500),
-          titleSmall:    TextStyle(color: textSecondary,  fontSize: 14, fontWeight: FontWeight.w500),
-          bodyLarge:     TextStyle(color: textPrimary,    fontSize: 16),
-          bodyMedium:    TextStyle(color: textSecondary,  fontSize: 14),
-          bodySmall:     TextStyle(color: textHint,       fontSize: 12),
-          labelLarge:    TextStyle(color: textPrimary,    fontSize: 14, fontWeight: FontWeight.w600),
-          labelSmall:    TextStyle(color: textHint,       fontSize: 11, letterSpacing: 0.5),
+          displayLarge:   TextStyle(color: textPrimary,    fontSize: 32, fontWeight: FontWeight.w700),
+          displayMedium:  TextStyle(color: textPrimary,    fontSize: 28, fontWeight: FontWeight.w700),
+          headlineLarge:  TextStyle(color: textPrimary,    fontSize: 24, fontWeight: FontWeight.w600),
+          headlineMedium: TextStyle(color: textPrimary,    fontSize: 20, fontWeight: FontWeight.w600),
+          titleLarge:     TextStyle(color: textPrimary,    fontSize: 18, fontWeight: FontWeight.w600),
+          titleMedium:    TextStyle(color: textPrimary,    fontSize: 16, fontWeight: FontWeight.w500),
+          titleSmall:     TextStyle(color: textSecondary,  fontSize: 14, fontWeight: FontWeight.w500),
+          bodyLarge:      TextStyle(color: textPrimary,    fontSize: 16),
+          bodyMedium:     TextStyle(color: textSecondary,  fontSize: 14),
+          bodySmall:      TextStyle(color: textHint,       fontSize: 12),
+          labelLarge:     TextStyle(color: textPrimary,    fontSize: 14, fontWeight: FontWeight.w600),
+          labelSmall:     TextStyle(color: textHint,       fontSize: 11, letterSpacing: 0.5),
         ),
       ),
       appBarTheme: const AppBarTheme(
@@ -110,7 +115,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
-        indicatorColor: accent.withOpacity(0.15),
+        indicatorColor: accent.withValues(alpha: 0.15),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return IconThemeData(color: accent);
@@ -139,7 +144,7 @@ class AppTheme {
         activeTrackColor: accent,
         inactiveTrackColor: divider,
         thumbColor: accent,
-        overlayColor: accent.withOpacity(0.15),
+        overlayColor: accent.withValues(alpha: 0.15),
       ),
       listTileTheme: const ListTileThemeData(
         iconColor: textSecondary,
@@ -156,10 +161,16 @@ class AppTheme {
         states.contains(WidgetState.selected) ? accent : textHint),
         trackColor: WidgetStateProperty.resolveWith((states) =>
         states.contains(WidgetState.selected)
-            ? accent.withOpacity(0.4)
+            ? accent.withValues(alpha: 0.4)
             : surfaceHigh),
       ),
       dividerTheme: const DividerThemeData(color: divider, space: 1),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: onAccent, // ← ensures text/icon readable on all colors
+        ),
+      ),
     );
   }
 }

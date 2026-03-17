@@ -8,18 +8,17 @@ class ThemeNotifier extends Notifier<MeloxTheme> {
   @override
   MeloxTheme build() {
     _load();
-    return MeloxTheme.purple; // default
+    return MeloxTheme.lime; // default
   }
 
   Future<void> _load() async {
     final box = Hive.box('settings');
-    final saved = box.get(_key, defaultValue: 'purple') as String;
+    final saved = box.get(_key, defaultValue: 'lime') as String;
     state = MeloxTheme.values.firstWhere(
           (t) => t.name == saved,
-      orElse: () => MeloxTheme.purple,
+      orElse: () => MeloxTheme.lime,
     );
   }
-
   Future<void> setTheme(MeloxTheme theme) async {
     final box = Hive.box('settings');
     await box.put(_key, theme.name);

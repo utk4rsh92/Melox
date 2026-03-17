@@ -1,5 +1,3 @@
-// lib/presentation/screens/splash/splash_screen.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,15 +15,15 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
     with TickerProviderStateMixin {
-  Color get _accent =>
-      ref.read(themeProvider).primary;
-  // ── Controllers ──────────────────────────────────────────────
+
+  // Read accent ONCE at build time so painters get the right color
+  Color get _accent => ref.read(themeProvider).primary;
+
   late final AnimationController _ringController;
   late final AnimationController _waveController;
   late final AnimationController _revealController;
   late final AnimationController _exitController;
 
-  // ── Reveal animations ─────────────────────────────────────────
   late final Animation<double> _iconScale;
   late final Animation<double> _iconFade;
   late final Animation<double> _glowPulse;
@@ -34,8 +32,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final Animation<double> _taglineFade;
   late final Animation<Offset> _taglineSlide;
   late final Animation<double> _dotsOpacity;
-
-  // ── Exit animations ───────────────────────────────────────────
   late final Animation<double> _exitFade;
   late final Animation<double> _exitScale;
 
@@ -43,31 +39,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
 
-    // Ring rotation — slow continuous spin
     _ringController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
     )..repeat();
 
-    // Waveform pulse
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    // Staggered reveal — 1800ms total
     _revealController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
 
-    // Exit — fast fade+scale out
     _exitController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
 
-    // Icon
     _iconScale = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _revealController,
@@ -80,16 +71,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         curve: const Interval(0.0, 0.25, curve: Curves.easeOut),
       ),
     );
-
-    // Glow pulse after icon appears
     _glowPulse = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _revealController,
         curve: const Interval(0.3, 0.6, curve: Curves.easeOut),
       ),
     );
-
-    // Title
     _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _revealController,
@@ -103,8 +90,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       parent: _revealController,
       curve: const Interval(0.4, 0.65, curve: Curves.easeOutCubic),
     ));
-
-    // Tagline
     _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _revealController,
@@ -118,16 +103,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       parent: _revealController,
       curve: const Interval(0.55, 0.78, curve: Curves.easeOutCubic),
     ));
-
-    // Loading dots
     _dotsOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _revealController,
         curve: const Interval(0.75, 1.0, curve: Curves.easeOut),
       ),
     );
-
-    // Exit
     _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _exitController, curve: Curves.easeInCubic),
     );
@@ -139,14 +120,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _start() async {
-    // Small delay then reveal
     await Future.delayed(const Duration(milliseconds: 200));
     _revealController.forward();
-
-    // Hold then exit
     await Future.delayed(const Duration(milliseconds: 2800));
     await _exitController.forward();
-
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -169,15 +146,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accent; // ← read once per build
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: const Color(0xFF080808),
         body: AnimatedBuilder(
-          animation: Listenable.merge([
-            _exitController,
-            _revealController,
-          ]),
+          animation: Listenable.merge([_exitController, _revealController]),
           builder: (context, _) {
             return FadeTransition(
               opacity: _exitFade,
@@ -186,28 +162,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // ── Background grid pattern ──────────────
+                    // Background grid
                     CustomPaint(
-                      painter: _GridPainter(),
+                      painter: _GridPainter(accent: accent),
                     ),
 
-                    // ── Rotating rings ───────────────────────
+                    // Rotating rings
                     AnimatedBuilder(
                       animation: _ringController,
                       builder: (_, __) => CustomPaint(
                         painter: _RingsPainter(
                           progress: _ringController.value,
                           glowOpacity: _glowPulse.value,
+                          accent: accent, // ← themed
                         ),
                       ),
                     ),
 
-                    // ── Center content ───────────────────────
+                    // Center content
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Icon with glow
+                          // Icon
                           FadeTransition(
                             opacity: _iconFade,
                             child: ScaleTransition(
@@ -221,6 +198,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   glowOpacity: 0.35 *
                                       _glowPulse.value *
                                       (0.7 + _waveController.value * 0.3),
+                                  accent: accent, // ← themed
                                 ),
                               ),
                             ),
@@ -235,6 +213,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               animation: _waveController,
                               builder: (_, __) => _WaveformWidget(
                                 progress: _waveController.value,
+                                accent: accent, // ← themed
                               ),
                             ),
                           ),
@@ -254,7 +233,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                     fontSize: 48,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 12,
-                                    fontFamily: 'PlusJakartaSans',
                                   ),
                                 ),
                               ),
@@ -291,6 +269,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               animation: _waveController,
                               builder: (_, __) => _LoadingDots(
                                 progress: _waveController.value,
+                                accent: accent, // ← themed
                               ),
                             ),
                           ),
@@ -308,13 +287,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 }
 
-// ── Glow icon ─────────────────────────────────────────────────
+// ── Glow icon ──────────────────────────────────────────────────
 
 class _GlowIcon extends StatelessWidget {
   final double glowRadius;
   final double glowOpacity;
+  final Color accent;
 
-  const _GlowIcon({required this.glowRadius, required this.glowOpacity});
+  const _GlowIcon({
+    required this.glowRadius,
+    required this.glowOpacity,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -325,36 +309,41 @@ class _GlowIcon extends StatelessWidget {
         shape: BoxShape.circle,
         color: const Color(0xFF111111),
         border: Border.all(
-          color: const Color(0xFFBB86FC).withOpacity(0.3),
+          color: accent.withValues(alpha: 0.3), // ← themed
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFBB86FC).withOpacity(glowOpacity),
+            color: accent.withValues(alpha: glowOpacity), // ← themed
             blurRadius: glowRadius,
             spreadRadius: glowRadius * 0.3,
           ),
           BoxShadow(
-            color: const Color(0xFFBB86FC).withOpacity(glowOpacity * 0.4),
+            color: accent.withValues(alpha: glowOpacity * 0.4), // ← themed
             blurRadius: glowRadius * 2.5,
             spreadRadius: glowRadius * 0.1,
           ),
         ],
       ),
-      child: const Icon(
+      child: Icon(
         Icons.music_note_rounded,
-        color: Color(0xFFBB86FC),
+        color: accent, // ← themed
         size: 52,
       ),
     );
   }
 }
 
-// ── Waveform bars ─────────────────────────────────────────────
+// ── Waveform bars ──────────────────────────────────────────────
 
 class _WaveformWidget extends StatelessWidget {
   final double progress;
-  const _WaveformWidget({required this.progress});
+  final Color accent;
+
+  const _WaveformWidget({
+    required this.progress,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -368,18 +357,17 @@ class _WaveformWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(barCount, (i) {
-          // Create a wave pattern
           final phase = (i / barCount) * 2 * pi;
           final wave = sin(phase + progress * 2 * pi);
           final secondWave = sin(phase * 1.7 + progress * 2 * pi * 0.8);
           final height = minHeight +
               (maxHeight - minHeight) * ((wave + secondWave + 2) / 4);
 
-          // Color gradient across bars
+          // Lerp between dimmed and full accent
           final t = i / barCount;
           final color = Color.lerp(
-            const Color(0xFF9B59B6),
-            const Color(0xFFBB86FC),
+            accent.withValues(alpha: 0.5),
+            accent,
             t,
           )!;
 
@@ -388,7 +376,9 @@ class _WaveformWidget extends StatelessWidget {
             height: height,
             margin: const EdgeInsets.symmetric(horizontal: 1.5),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.7 + wave * 0.3),
+              color: color.withValues(
+                alpha: (0.7 + wave * 0.3).clamp(0.0, 1.0),
+              ),
               borderRadius: BorderRadius.circular(2),
             ),
           );
@@ -398,21 +388,25 @@ class _WaveformWidget extends StatelessWidget {
   }
 }
 
-// ── Loading dots ──────────────────────────────────────────────
+// ── Loading dots ───────────────────────────────────────────────
 
 class _LoadingDots extends StatelessWidget {
   final double progress;
-  const _LoadingDots({required this.progress});
+  final Color accent;
+
+  const _LoadingDots({
+    required this.progress,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(3, (i) {
-        // Stagger each dot
         final dotProgress = ((progress + i * 0.33) % 1.0);
         final scale = 0.6 + sin(dotProgress * pi) * 0.4;
-        final opacity = 0.3 + sin(dotProgress * pi) * 0.7;
+        final opacity = (0.3 + sin(dotProgress * pi) * 0.7).clamp(0.0, 1.0);
 
         return Container(
           width: 6 * scale,
@@ -420,7 +414,7 @@ class _LoadingDots extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFBB86FC).withOpacity(opacity),
+            color: accent.withValues(alpha: opacity), // ← themed
           ),
         );
       }),
@@ -428,19 +422,22 @@ class _LoadingDots extends StatelessWidget {
   }
 }
 
-// ── Rotating rings painter ────────────────────────────────────
+// ── Rotating rings painter ─────────────────────────────────────
 
 class _RingsPainter extends CustomPainter {
   final double progress;
   final double glowOpacity;
+  final Color accent;
 
-  _RingsPainter({required this.progress, required this.glowOpacity});
+  _RingsPainter({
+    required this.progress,
+    required this.glowOpacity,
+    required this.accent,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-
-    // Draw 3 rings at different sizes and rotation speeds
     _drawRing(canvas, center, 130, progress * 2 * pi, 8, 0.08);
     _drawRing(canvas, center, 180, -progress * 2 * pi * 0.7, 5, 0.05);
     _drawRing(canvas, center, 230, progress * 2 * pi * 0.5, 4, 0.04);
@@ -455,23 +452,23 @@ class _RingsPainter extends CustomPainter {
       double baseOpacity,
       ) {
     final paint = Paint()
-      ..color = const Color(0xFFBB86FC).withOpacity(baseOpacity * glowOpacity)
+      ..color = accent.withValues(
+        alpha: (baseOpacity * glowOpacity).clamp(0.0, 1.0),
+      ) // ← themed
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < dotCount; i++) {
       final angle = rotation + (i / dotCount) * 2 * pi;
       final x = center.dx + radius * cos(angle);
       final y = center.dy + radius * sin(angle);
-
-      // Vary dot size slightly
       final dotSize = 2.0 + (i % 3) * 0.8;
       canvas.drawCircle(Offset(x, y), dotSize, paint);
     }
 
-    // Draw faint arc connecting the dots
     final arcPaint = Paint()
-      ..color = const Color(0xFFBB86FC)
-          .withOpacity(baseOpacity * 0.4 * glowOpacity)
+      ..color = accent.withValues(
+        alpha: (baseOpacity * 0.4 * glowOpacity).clamp(0.0, 1.0),
+      ) // ← themed
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
@@ -480,30 +477,32 @@ class _RingsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingsPainter old) =>
-      old.progress != progress || old.glowOpacity != glowOpacity;
+      old.progress != progress ||
+          old.glowOpacity != glowOpacity ||
+          old.accent != accent;
 }
 
-// ── Background grid painter ───────────────────────────────────
+// ── Background grid painter ────────────────────────────────────
 
 class _GridPainter extends CustomPainter {
+  final Color accent;
+  const _GridPainter({required this.accent});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFBB86FC).withOpacity(0.025)
+      ..color = accent.withValues(alpha: 0.025) // ← themed
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;
-
-    // Vertical lines
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-    // Horizontal lines
     for (double y = 0; y < size.height; y += spacing) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(_GridPainter old) => false;
+  bool shouldRepaint(_GridPainter old) => old.accent != accent;
 }

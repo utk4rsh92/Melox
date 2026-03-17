@@ -15,10 +15,7 @@ class EqualizerScreen extends ConsumerStatefulWidget {
 }
 
 class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
-  // Band frequency labels
   final List<String> _bandLabels = ['60Hz', '230Hz', '910Hz', '4kHz', '14kHz'];
-
-  // Local band levels for immediate UI response
   late List<int> _localLevels;
   bool _initialized = false;
 
@@ -37,22 +34,21 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary; // ← add
     final activePreset = ref.watch(eqProvider);
     final presetsAsync = ref.watch(eqPresetsProvider);
 
-    // Init local levels from active preset
     _initLevels(activePreset);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App bar
           SliverAppBar(
             expandedHeight: 120,
             floating: true,
             snap: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
+            flexibleSpace: const FlexibleSpaceBar(
+              title: Text(
                 'Equalizer',
                 style: TextStyle(
                   fontSize: 28,
@@ -60,7 +56,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                   letterSpacing: -1,
                 ),
               ),
-              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              titlePadding: EdgeInsets.only(left: 20, bottom: 16),
             ),
           ),
 
@@ -70,36 +66,31 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               children: [
                 const SizedBox(height: 8),
 
-                // ── EQ Band sliders ──────────────────────
+                // EQ Band sliders
                 _EQBandsWidget(
                   levels: _localLevels,
                   bandLabels: _bandLabels,
+                  accent: accent, // ← pass accent
                   onBandChanged: (index, value) {
                     setState(() => _localLevels[index] = value);
-                    ref
-                        .read(eqProvider.notifier)
-                        .updateBandLevel(index, value);
+                    ref.read(eqProvider.notifier).updateBandLevel(index, value);
                   },
                 ),
 
                 const SizedBox(height: 8),
 
-                // Save custom preset button
+                // Save preset button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: OutlinedButton.icon(
-                    onPressed: () => _showSavePresetDialog(context, ref),
-                    icon: const Icon(
-                      Icons.save_outlined,
-                      color: AppTheme.primary,
-                      size: 18,
-                    ),
-                    label: const Text(
+                    onPressed: () => _showSavePresetDialog(context, ref, accent),
+                    icon: Icon(Icons.save_outlined, color: accent, size: 18),
+                    label: Text(
                       'Save as preset',
-                      style: TextStyle(color: AppTheme.primary),
+                      style: TextStyle(color: accent),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.primary),
+                      side: BorderSide(color: accent), // ← themed
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -110,7 +101,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
                 const SizedBox(height: 24),
 
-                // ── Presets section ──────────────────────
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
@@ -129,6 +119,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                   data: (presets) => _PresetsList(
                     presets: presets,
                     activePreset: activePreset,
+                    accent: accent, // ← pass accent
                     onSelect: (preset) {
                       setState(() {
                         _localLevels = List<int>.from(preset.bandLevels);
@@ -139,15 +130,13 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                       ref.read(eqProvider.notifier).deletePreset(preset);
                     },
                   ),
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primary,
-                    ),
+                  loading: () => Center(
+                    child: CircularProgressIndicator(color: accent), // ← themed
                   ),
                   error: (e, _) => Center(child: Text('$e')),
                 ),
 
-                const SizedBox(height: 100), // bottom padding for mini player
+                const SizedBox(height: 100),
               ],
             ),
           ),
@@ -156,16 +145,14 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     );
   }
 
-  void _showSavePresetDialog(BuildContext context, WidgetRef ref) {
+  void _showSavePresetDialog(BuildContext context, WidgetRef ref, Color accent) {
     final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text(
-          'Save preset',
-          style: TextStyle(color: AppTheme.textPrimary),
-        ),
+        title: const Text('Save preset',
+            style: TextStyle(color: AppTheme.textPrimary)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -179,17 +166,15 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.primary),
+              borderSide: BorderSide(color: accent), // ← themed
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
             onPressed: () {
@@ -201,7 +186,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                     bandLevels: List<int>.from(_localLevels),
                   ),
                 );
-                // Refresh presets list
                 ref.invalidate(eqPresetsProvider);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -213,10 +197,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                 );
               }
             },
-            child: const Text(
-              'Save',
-              style: TextStyle(color: AppTheme.primary),
-            ),
+            child: Text('Save', style: TextStyle(color: accent)), // ← themed
           ),
         ],
       ),
@@ -229,15 +210,16 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 class _EQBandsWidget extends StatelessWidget {
   final List<int> levels;
   final List<String> bandLabels;
+  final Color accent;
   final void Function(int index, int value) onBandChanged;
 
   const _EQBandsWidget({
     required this.levels,
     required this.bandLabels,
+    required this.accent,
     required this.onBandChanged,
   });
 
-  // EQ range: -1500 to +1500 millibels
   static const int _minDb = -1500;
   static const int _maxDb = 1500;
 
@@ -252,7 +234,7 @@ class _EQBandsWidget extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // dB labels on the right
+          // dB value labels
           Row(
             children: [
               const SizedBox(width: 40),
@@ -266,7 +248,7 @@ class _EQBandsWidget extends StatelessWidget {
                       '${isPositive ? '+' : ''}$db',
                       style: TextStyle(
                         color: isPositive
-                            ? AppTheme.primary
+                            ? accent // ← themed
                             : levels[i] < 0
                             ? AppTheme.textSecondary
                             : AppTheme.textHint,
@@ -282,31 +264,26 @@ class _EQBandsWidget extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Vertical sliders row
           SizedBox(
             height: 220,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // dB axis labels
-                Column(
+                const Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
+                  children: [
                     Text('+15',
-                        style: TextStyle(
-                            color: AppTheme.textHint, fontSize: 10)),
+                        style: TextStyle(color: AppTheme.textHint, fontSize: 10)),
                     Text('0',
-                        style: TextStyle(
-                            color: AppTheme.textHint, fontSize: 10)),
+                        style: TextStyle(color: AppTheme.textHint, fontSize: 10)),
                     Text('-15',
-                        style: TextStyle(
-                            color: AppTheme.textHint, fontSize: 10)),
+                        style: TextStyle(color: AppTheme.textHint, fontSize: 10)),
                   ],
                 ),
 
                 const SizedBox(width: 8),
 
-                // Zero line + sliders
                 Expanded(
                   child: Stack(
                     children: [
@@ -320,7 +297,6 @@ class _EQBandsWidget extends StatelessWidget {
                           color: AppTheme.divider,
                         ),
                       ),
-
                       // Band sliders
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -329,8 +305,8 @@ class _EQBandsWidget extends StatelessWidget {
                             value: levels[i].toDouble(),
                             min: _minDb.toDouble(),
                             max: _maxDb.toDouble(),
-                            onChanged: (val) =>
-                                onBandChanged(i, val.round()),
+                            accent: accent, // ← pass accent
+                            onChanged: (val) => onBandChanged(i, val.round()),
                           );
                         }),
                       ),
@@ -375,12 +351,14 @@ class _VerticalBandSlider extends StatelessWidget {
   final double value;
   final double min;
   final double max;
+  final Color accent;
   final ValueChanged<double> onChanged;
 
   const _VerticalBandSlider({
     required this.value,
     required this.min,
     required this.max,
+    required this.accent,
     required this.onChanged,
   });
 
@@ -390,16 +368,16 @@ class _VerticalBandSlider extends StatelessWidget {
       width: 40,
       height: 220,
       child: RotatedBox(
-        quarterTurns: 3, // rotate slider to vertical
+        quarterTurns: 3,
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 3,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-            activeTrackColor: AppTheme.primary,
+            activeTrackColor: accent,                        // ← themed
             inactiveTrackColor: AppTheme.divider,
-            thumbColor: AppTheme.primary,
-            overlayColor: AppTheme.primary.withOpacity(0.15),
+            thumbColor: accent,                              // ← themed
+            overlayColor: accent.withValues(alpha: 0.15),   // ← themed
           ),
           child: Slider(
             value: value.clamp(min, max),
@@ -418,12 +396,14 @@ class _VerticalBandSlider extends StatelessWidget {
 class _PresetsList extends StatelessWidget {
   final List<EQPreset> presets;
   final EQPreset? activePreset;
+  final Color accent;
   final ValueChanged<EQPreset> onSelect;
   final ValueChanged<EQPreset> onDelete;
 
   const _PresetsList({
     required this.presets,
     required this.activePreset,
+    required this.accent,
     required this.onSelect,
     required this.onDelete,
   });
@@ -435,10 +415,8 @@ class _PresetsList extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: presets.length,
-      separatorBuilder: (_, __) => const Divider(
-        color: AppTheme.divider,
-        height: 1,
-      ),
+      separatorBuilder: (_, __) =>
+      const Divider(color: AppTheme.divider, height: 1),
       itemBuilder: (context, index) {
         final preset = presets[index];
         final isActive = activePreset?.name == preset.name;
@@ -450,41 +428,35 @@ class _PresetsList extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: isActive
-                  ? AppTheme.primary.withOpacity(0.15)
+                  ? accent.withValues(alpha: 0.15) // ← themed
                   : AppTheme.surfaceHigh,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              isActive
-                  ? Icons.equalizer_rounded
-                  : Icons.music_note_outlined,
-              color: isActive ? AppTheme.primary : AppTheme.textHint,
+              isActive ? Icons.equalizer_rounded : Icons.music_note_outlined,
+              color: isActive ? accent : AppTheme.textHint, // ← themed
               size: 20,
             ),
           ),
           title: Text(
             preset.name,
             style: TextStyle(
-              color: isActive ? AppTheme.primary : AppTheme.textPrimary,
-              fontWeight:
-              isActive ? FontWeight.w600 : FontWeight.w400,
+              color: isActive ? accent : AppTheme.textPrimary, // ← themed
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               fontSize: 15,
             ),
           ),
           subtitle: Text(
             preset.isBuiltIn ? 'Built-in' : 'Custom',
-            style: const TextStyle(
-              color: AppTheme.textHint,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: AppTheme.textHint, fontSize: 12),
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isActive)
-                const Icon(
+                Icon(
                   Icons.check_circle_rounded,
-                  color: AppTheme.primary,
+                  color: accent, // ← themed
                   size: 20,
                 ),
               if (!preset.isBuiltIn)
