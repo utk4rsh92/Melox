@@ -10,6 +10,7 @@ import '../../../application/providers/player_provider.dart';
 import '../../../application/providers/player_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../widgets/album_art.dart';
+import '../lyrics/lyrics_screen.dart';
 
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
@@ -212,19 +213,14 @@ class _TopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
+      child: // In _TopBar build method — update the Row:
+      Row(
         children: [
-          // Down chevron
           IconButton(
-            icon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 30,
-            ),
-            color: Colors.white.withOpacity(0.8),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
+            color: Colors.white.withValues(alpha: 0.8),
             onPressed: () => Navigator.pop(context),
           ),
-
-          // Title
           const Expanded(
             child: Column(
               children: [
@@ -241,11 +237,31 @@ class _TopBar extends ConsumerWidget {
               ],
             ),
           ),
-
-          // Queue button
+          // Lyrics button
+          IconButton(
+            icon: const Icon(Icons.lyrics_outlined, size: 22),
+            color: Colors.white.withValues(alpha: 0.8),
+            onPressed: () => Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const LyricsScreen(),
+                transitionsBuilder: (_, animation, __, child) =>
+                    SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 1),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: child,
+                    ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.queue_music_rounded, size: 24),
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             onPressed: () => _showQueue(context, ref),
           ),
         ],
@@ -684,7 +700,6 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
 
     return Column(
       children: [
-        // ── Wave progress ──────────────────────────────
         GestureDetector(
           onHorizontalDragStart: (_) {
             setState(() => _dragValue = progress);
@@ -710,26 +725,21 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
             final value = (localX / box.size.width).clamp(0.0, 1.0);
             widget.notifier.seekToFraction(value);
           },
-          child: AnimatedBuilder(
-            animation: _waveController,
-            builder: (_, __) => SizedBox(
-              height: 64,
-              child: CustomPaint(
-                painter: _WaveProgressPainter(
-                  progress: progress,
-                  accent: widget.accent,
-                  animValue: _waveController.value,
-                  isPlaying: widget.state.isPlaying,
-                ),
-                size: const Size(double.infinity, 64),
+          child: SizedBox(
+            height: 64,
+            child: CustomPaint(
+              painter: _WaveProgressPainter(
+                progress: progress,
+                accent: widget.accent,
               ),
+              size: const Size(double.infinity, 64),
             ),
           ),
         ),
 
         const SizedBox(height: 4),
 
-        // ── Time labels ────────────────────────────────
+        // Time labels
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
@@ -777,19 +787,15 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
   }
 }
 
-// ── Wave progress painter ──────────────────────────────────────
+// ── Static wave progress painter ───────────────────────────────
 
 class _WaveProgressPainter extends CustomPainter {
   final double progress;
   final Color accent;
-  final double animValue;
-  final bool isPlaying;
 
   _WaveProgressPainter({
     required this.progress,
     required this.accent,
-    required this.animValue,
-    required this.isPlaying,
   });
 
   @override
@@ -797,107 +803,97 @@ class _WaveProgressPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final midY = h / 2;
-    const amplitude = 10.0;   // wave height
-    const frequency = 2.5;    // number of full waves
-    const steps = 300;         // smoothness
-
-    // Phase shift — only animates when playing
-    final phase = isPlaying ? animValue * 2 * pi : 0.0;
+    const amplitude = 9.0;
+    const frequency = 7.0; // number of full waves across track
+    const steps = 400;
 
     final progressX = w * progress;
 
-    // ── Build played wave path ─────────────────────────
+    // ── Full static wave — no phase, no animation ──────
     final playedPath = Path();
-    bool playedStarted = false;
-
-    for (int i = 0; i <= steps; i++) {
-      final t = i / steps;
-      final x = w * t;
-      if (x > progressX) break;
-
-      final y = midY +
-          amplitude * sin(2 * pi * frequency * t - phase);
-
-      if (!playedStarted) {
-        playedPath.moveTo(x, y);
-        playedStarted = true;
-      } else {
-        playedPath.lineTo(x, y);
-      }
-    }
-
-    // ── Build unplayed wave path ───────────────────────
     final unplayedPath = Path();
+    bool playedStarted = false;
     bool unplayedStarted = false;
 
     for (int i = 0; i <= steps; i++) {
       final t = i / steps;
       final x = w * t;
-      if (x < progressX) continue;
 
-      final y = midY +
-          amplitude * 0.5 * sin(2 * pi * frequency * t - phase);
+      // Same formula for both — static sine, no phase offset
+      final y = midY + amplitude * sin(2 * pi * frequency * t);
 
-      if (!unplayedStarted) {
-        unplayedPath.moveTo(x, y);
-        unplayedStarted = true;
+      if (x <= progressX) {
+        // Played portion — full amplitude
+        if (!playedStarted) {
+          playedPath.moveTo(x, y);
+          playedStarted = true;
+        } else {
+          playedPath.lineTo(x, y);
+        }
       } else {
-        unplayedPath.lineTo(x, y);
+        // Unplayed portion — smaller amplitude, dimmer
+        final unplayedY = midY + amplitude * 0.45 * sin(2 * pi * frequency * t);
+        if (!unplayedStarted) {
+          unplayedPath.moveTo(x, unplayedY);
+          unplayedStarted = true;
+        } else {
+          unplayedPath.lineTo(x, unplayedY);
+        }
       }
     }
 
-    // ── Draw unplayed — flat, dim ──────────────────────
+    // ── Draw unplayed track ────────────────────────────
     canvas.drawPath(
       unplayedPath,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.12)
+        ..color = Colors.white.withValues(alpha: 0.1)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
+        ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
 
-    // ── Draw played glow (blur layer) ─────────────────
-    canvas.drawPath(
-      playedPath,
-      Paint()
-        ..color = accent.withValues(alpha: 0.25)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 8
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-
-    // ── Draw played — bright, full amplitude ──────────
-    canvas.drawPath(
-      playedPath,
-      Paint()
-        ..color = accent
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-
-    // ── Glowing dot at progress point ─────────────────
-    if (progress > 0 && progress < 1) {
-      final dotT = progress;
-      final dotX = w * dotT;
-      final dotY = midY +
-          amplitude * sin(2 * pi * frequency * dotT - phase);
-
-      // Outer glow
-      canvas.drawCircle(
-        Offset(dotX, dotY),
-        9,
-        Paint()..color = accent.withValues(alpha: 0.15),
+    // ── Draw played glow ───────────────────────────────
+    if (progress > 0) {
+      canvas.drawPath(
+        playedPath,
+        Paint()
+          ..color = accent.withValues(alpha: 0.2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       );
-      // Mid
+
+      // ── Draw played wave — sharp, bright ─────────────
+      canvas.drawPath(
+        playedPath,
+        Paint()
+          ..color = accent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+
+    // ── Glowing dot at progress tip ────────────────────
+    if (progress > 0 && progress < 1) {
+      final dotX = progressX;
+      final dotY = midY + amplitude * sin(2 * pi * frequency * progress);
+
+      // Outer glow ring
       canvas.drawCircle(
         Offset(dotX, dotY),
-        5.5,
-        Paint()..color = accent.withValues(alpha: 0.35),
+        10,
+        Paint()..color = accent.withValues(alpha: 0.12),
+      );
+      // Mid ring
+      canvas.drawCircle(
+        Offset(dotX, dotY),
+        6,
+        Paint()..color = accent.withValues(alpha: 0.3),
       );
       // White core
       canvas.drawCircle(
@@ -905,7 +901,7 @@ class _WaveProgressPainter extends CustomPainter {
         4,
         Paint()..color = Colors.white,
       );
-      // Accent inner
+      // Accent center
       canvas.drawCircle(
         Offset(dotX, dotY),
         2,
@@ -916,10 +912,7 @@ class _WaveProgressPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveProgressPainter old) =>
-      old.progress != progress ||
-          old.animValue != animValue ||
-          old.accent != accent ||
-          old.isPlaying != isPlaying;
+      old.progress != progress || old.accent != accent;
 }
 
 // ── Premium controls ───────────────────────────────────────────

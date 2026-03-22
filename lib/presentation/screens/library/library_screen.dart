@@ -100,6 +100,7 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Handle
           Container(
             width: 36, height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
@@ -108,19 +109,43 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
+
+          // Song title header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Text(
-              song.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Row(
+              children: [
+                AlbumArtWidget(songId: song.id, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        song.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        song.artist,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
+
           const Divider(color: AppTheme.divider, height: 1),
 
           // Favorite toggle
@@ -129,7 +154,7 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
               isFavorite
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              color: isFavorite ? accent : AppTheme.textSecondary, // ← themed
+              color: isFavorite ? accent : AppTheme.textSecondary,
             ),
             title: Text(
               isFavorite ? 'Remove from favorites' : 'Add to favorites',
@@ -145,6 +170,7 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
 
           const Divider(color: AppTheme.divider, height: 1),
 
+          // Add to playlist
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Align(
@@ -161,7 +187,7 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
 
           if (playlists.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
                 'No playlists yet — create one first',
                 style: TextStyle(color: AppTheme.textHint),
@@ -172,7 +198,8 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
               leading: const Icon(Icons.queue_music_rounded,
                   color: AppTheme.textSecondary),
               title: Text(playlist.name,
-                  style: const TextStyle(color: AppTheme.textPrimary)),
+                  style:
+                  const TextStyle(color: AppTheme.textPrimary)),
               subtitle: Text('${playlist.songCount} songs',
                   style: const TextStyle(color: AppTheme.textHint)),
               onTap: () {
@@ -190,9 +217,80 @@ void _showSongOptions(BuildContext context, WidgetRef ref, Song song) {
               },
             )),
 
+          const Divider(color: AppTheme.divider, height: 1),
+
+          // ← DELETE OPTION
+          ListTile(
+            leading: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppTheme.error,
+            ),
+            title: const Text(
+              'Delete from device',
+              style: TextStyle(color: AppTheme.error),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDelete(context, ref, song);
+            },
+          ),
+
           const SizedBox(height: 8),
         ],
       ),
+    ),
+  );
+}
+
+// ── Confirm delete dialog ─────────────────────────────────────
+
+void _confirmDelete(BuildContext context, WidgetRef ref, Song song) {
+  final accent = Theme.of(context).colorScheme.primary;
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppTheme.surface,
+      title: const Text(
+        'Delete song?',
+        style: TextStyle(color: AppTheme.textPrimary),
+      ),
+      content: Text(
+        '"${song.title}" will be permanently deleted from your device.',
+        style: const TextStyle(color: AppTheme.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: accent),
+          ),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await ref
+                .read(favoritesNotifierProvider.notifier)
+                .deleteSong(song);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('"${song.title}" deleted'),
+                  backgroundColor: AppTheme.surfaceHigh,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: const Text(
+            'Delete',
+            style: TextStyle(
+              color: AppTheme.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

@@ -43,6 +43,19 @@ class MainActivity : AudioServiceActivity() {
                 "getCenterFrequencies" -> {
                     result.success(equalizerManager.getCenterFrequencies())
                 }
+                "deleteSong" -> {
+                    val songId = call.argument<Int>("songId") ?: 0
+                    try {
+                        val uri = android.net.Uri.withAppendedPath(
+                            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                            songId.toString()
+                        )
+                        val deleted = contentResolver.delete(uri, null, null)
+                        result.success(deleted > 0)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
                 "setEnabled" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: true
                     equalizerManager.setEnabled(enabled)

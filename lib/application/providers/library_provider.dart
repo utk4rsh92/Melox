@@ -93,6 +93,18 @@ class FavoritesNotifier extends Notifier<Set<int>> {
     return {};
   }
 
+  Future<void> deleteSong(Song song) async {
+    final repo = ref.read(libraryRepositoryProvider);
+    final success = await repo.deleteSong(song);
+
+    if (success) {
+      state = {...state}..remove(song.id);
+      // ← Delay refresh to avoid QueryArtworkWidget crash
+      await Future.delayed(const Duration(milliseconds: 500));
+      ref.invalidate(libraryProvider);
+    }
+  }
+
   Future<void> _loadFavorites() async {
     final repo = ref.read(libraryRepositoryProvider);
     final favorites = await repo.fetchFavorites();
@@ -109,7 +121,6 @@ class FavoritesNotifier extends Notifier<Set<int>> {
     }
     ref.invalidate(libraryProvider);
   }
-
   bool isFavorite(int songId) => state.contains(songId);
 }
 
