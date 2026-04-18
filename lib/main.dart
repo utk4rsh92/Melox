@@ -7,6 +7,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'app.dart';
 import 'domain/entities/eq_preset.dart';
 import 'domain/entities/playlist.dart';
+import 'domain/entities/radio_station.dart';
 import 'domain/entities/song.dart';
 
 Future<void>  main()async {
@@ -43,6 +44,7 @@ Future<void>  main()async {
   Hive.registerAdapter(SongAdapter());
   Hive.registerAdapter(PlaylistAdapter());
   Hive.registerAdapter(EQPresetAdapter());
+  Hive.registerAdapter(RadioStationAdapter());
   await Hive.openBox<Song>('songs');
   await Hive.openBox<Playlist>('playlists');
   await Hive.openBox<EQPreset>('eq_presets');
@@ -51,6 +53,7 @@ Future<void>  main()async {
     Hive.openBox<Playlist>('playlists'),
     Hive.openBox<EQPreset>('eq_presets'),
     Hive.openBox('settings'),
+    Hive.openBox<RadioStation>('radio_favorites'),
   ]);
 
   // 7. Seed built-in EQ presets on very first launch

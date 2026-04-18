@@ -251,19 +251,32 @@ class LyricsNotifier extends Notifier<LyricsState> {
         RegExp(r'\.(mp3|flac|m4a|wav|ogg|aac|opus)$',
             caseSensitive: false), '');
 
+    // ← NEW: Remove website domains — e.g. Riskyjatt.com, DJPunjab.com
+    s = s.replaceAll(
+        RegExp(r'\b[\w]+\.(com|net|org|in|co|io|me|pk|uk)\b',
+            caseSensitive: false), '');
+
+    // ← NEW: Remove common download site watermarks
+    s = s.replaceAll(
+        RegExp(
+            r'\b(riskyjatt|djpunjab|pagalworld|pagalnew|mr\s*jatt|mrjatt|djjohal|downloadming|songspk|bestwap|waploft|funmaza|djmaza|freshmaza|mymp3song|pendujatt|jattshare|djyoungster|raagpunjabi|gaana|wynk|pagalworld|downloadhub|mp3mad|mp3skull|mp3juices|ringtonedownload|wapking|mobango|zedge)\b',
+            caseSensitive: false),
+        '');
+
     // Remove trailing numbers/codes like _0394, _001
     s = s.replaceAll(RegExp(r'[_\-]\d{3,}$'), '');
 
     // Remove content in brackets — [Official Video], [HD], [Lyrics]
     s = s.replaceAll(RegExp(r'\[.*?\]'), '');
 
-    // Remove content in parentheses — (Lyrics), (Official), (Audio)
-    s = s.replaceAll(RegExp(r'\((?!.*feat|.*ft).*?\)', caseSensitive: false), '');
+    // Remove content in parentheses except feat/ft
+    s = s.replaceAll(
+        RegExp(r'\((?!.*feat|.*ft).*?\)', caseSensitive: false), '');
 
     // Remove common YouTube/download suffixes
     s = s.replaceAll(
         RegExp(
-            r'\b(lyrics?|official|video|audio|hd|hq|4k|mv|explicit|clean|remix|version|visualizer|lyric\s*video)\b',
+            r'\b(lyrics?|official|video|audio|hd|hq|4k|mv|explicit|clean|remix|version|visualizer|lyric\s*video|full\s*song|new\s*song)\b',
             caseSensitive: false),
         '');
 
@@ -271,8 +284,10 @@ class LyricsNotifier extends Notifier<LyricsState> {
     s = s.replaceAll(RegExp(r'\bft\.?\s.*$', caseSensitive: false), '');
     s = s.replaceAll(RegExp(r'\bfeat\.?\s.*$', caseSensitive: false), '');
 
-    // Remove extra dashes and whitespace
+    // Remove extra dashes and whitespace at end
     s = s.replaceAll(RegExp(r'\s*[-–—]\s*$'), '');
+
+    // Remove multiple spaces and trim
     s = s.trim().replaceAll(RegExp(r'\s+'), ' ');
 
     if (s == '<unknown>') return '';
@@ -283,17 +298,29 @@ class LyricsNotifier extends Notifier<LyricsState> {
   String _extractTitle(String rawTitle) {
     var s = _cleanString(rawTitle);
 
-    // Check for "Artist - Title" pattern in the title
-    // e.g. "chris brown - Residuals(Lyrics)_0394"
+    // Handle "Title - Website.com" pattern — take the part before the dash
+    // e.g. "dhol jageero da - Riskyjatt.com" → "dhol jageero da"
     if (s.contains(' - ') || s.contains(' – ')) {
       final parts = s.split(RegExp(r'\s[-–]\s'));
-      if (parts.length >= 2) {
-        // Last part is usually the title
+
+      // Check if last part looks like a website or junk
+      final lastPart = parts.last.trim().toLowerCase();
+      final isJunk = lastPart.contains('.com') ||
+          lastPart.contains('.net') ||
+          lastPart.contains('.in') ||
+          lastPart.length < 3 ||
+          RegExp(r'^\d+$').hasMatch(lastPart); // pure numbers
+
+      if (isJunk && parts.length >= 2) {
+        // Take everything except the last junk part
+        s = parts.sublist(0, parts.length - 1).join(' - ').trim();
+      } else if (parts.length >= 2) {
+        // Normal "Artist - Title" pattern — take last part as title
         s = parts.last.trim();
       }
     }
 
-    return _cleanString(s); // clean again after split
+    return _cleanString(s);
   }
 
   String _extractArtist(String rawTitle, String metaArtist) {

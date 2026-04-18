@@ -8,6 +8,7 @@ import '../../widgets/theme_picker.dart';
 import '../equalizer/equalizer_screen.dart';
 import '../library/library_screen.dart';
 import '../playlists/playlists_screen.dart';
+import '../radio/radio_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final List<Widget> _screens = const [
     LibraryScreen(),
     PlaylistsScreen(),
+    RadioScreen(),
     EqualizerScreen(),
   ];
 
@@ -93,6 +95,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 icon: const Icon(Icons.queue_music_outlined),
                 selectedIcon: Icon(Icons.queue_music, color: accent),
                 label: 'Playlists',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.radio_outlined),
+                selectedIcon: Icon(Icons.radio, color: accent),
+                label: 'Radio',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.equalizer_outlined),

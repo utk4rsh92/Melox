@@ -27,11 +27,25 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen>
   late final AnimationController _glowController;
   late final Animation<double> _slideAnimation;
   late final Animation<double> _glowAnimation;
+  late final AnimationController _swipeController;
+  late Animation<Offset> _swipeOffset;
+  late Animation<double> _swipeFade;
+  bool _isSwiping = false;
 
   @override
   void initState() {
     super.initState();
-
+    _swipeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _swipeOffset = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(_swipeController);
+    _swipeFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _swipeController, curve: Curves.easeOut),
+    );
     _albumArtController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 16),
@@ -73,6 +87,63 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen>
     super.dispose();
   }
 
+  Future<void> _animateSwipe(Offset targetOffset) async {
+    _swipeOffset = Tween<Offset>(
+      begin: _swipeOffset.value,
+      end: targetOffset,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.easeInCubic,
+    ));
+
+    _swipeFade = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.easeIn,
+    ));
+
+    _swipeController.reset();
+    await _swipeController.forward();
+  }
+
+  Future<void> _resetSwipe(Offset fromOffset) async {
+    _swipeController.reset();
+
+    _swipeOffset = Tween<Offset>(
+      begin: fromOffset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _swipeFade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.easeOut,
+    ));
+
+    await _swipeController.forward();
+  }
+
+  Future<void> _snapBack() async {
+    _swipeOffset = Tween<Offset>(
+      begin: _swipeOffset.value,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.elasticOut,
+    ));
+
+    _swipeFade = const AlwaysStoppedAnimation(1.0);
+
+    _swipeController.reset();
+    await _swipeController.forward();
+  }
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(playerProvider);
@@ -111,27 +182,61 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen>
                 children: [
                   // Top bar
                   _TopBar(accent: accent),
-
                   const SizedBox(height: 12),
 
-                  // Album art with swipe
+                  // ── Album art with swipe ──────────────────
                   Expanded(
                     flex: 5,
                     child: GestureDetector(
-                      onHorizontalDragEnd: (details) {
-                        if (details.primaryVelocity != null) {
-                          if (details.primaryVelocity! < -300) {
-                            notifier.skipToNext();
-                          } else if (details.primaryVelocity! > 300) {
-                            notifier.skipToPrevious();
-                          }
+                      onHorizontalDragUpdate: (details) {
+                        if (!_isSwiping) setState(() => _isSwiping = true);
+                        final currentDx = _swipeOffset.value.dx;
+                        _swipeOffset = AlwaysStoppedAnimation(
+                          Offset(currentDx + details.delta.dx / 200, 0),
+                        );
+                        setState(() {});
+                      },
+                      onHorizontalDragEnd: (details) async {
+                        final velocity = details.primaryVelocity ?? 0;
+                        final currentDx = _swipeOffset.value.dx;
+
+                        if (velocity < -300 || currentDx < -0.15) {
+                          // Swipe left — next song
+                          await _animateSwipe(const Offset(-1.5, 0));
+                          notifier.skipToNext();
+                          await _resetSwipe(const Offset(1.5, 0));
+                        } else if (velocity > 300 || currentDx > 0.15) {
+                          // Swipe right — previous song
+                          await _animateSwipe(const Offset(1.5, 0));
+                          notifier.skipToPrevious();
+                          await _resetSwipe(const Offset(-1.5, 0));
+                        } else {
+                          // Not enough — snap back
+                          await _snapBack();
                         }
+                        setState(() => _isSwiping = false);
+                      },
+                      onHorizontalDragCancel: () async {
+                        await _snapBack();
+                        setState(() => _isSwiping = false);
                       },
                       child: Center(
-                        child: _PremiumAlbumArt(
-                          controller: _albumArtController,
-                          glowAnimation: _glowAnimation,
-                          accent: accent,
+                        child: AnimatedBuilder(
+                          animation: _swipeController,
+                          builder: (_, __) => Transform.translate(
+                            offset: Offset(
+                              _swipeOffset.value.dx * 300,
+                              0,
+                            ),
+                            child: Opacity(
+                              opacity: _swipeFade.value.clamp(0.0, 1.0),
+                              child: _PremiumAlbumArt(
+                                controller: _albumArtController,
+                                glowAnimation: _glowAnimation,
+                                accent: accent,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -674,22 +779,40 @@ class _PremiumProgressBar extends StatefulWidget {
 }
 
 class _PremiumProgressBarState extends State<_PremiumProgressBar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   double? _dragValue;
   late final AnimationController _waveController;
+  late final AnimationController _playPulseController;
+  late final Animation<double> _playPulse;
 
   @override
   void initState() {
     super.initState();
+
+    // Wave phase animation — flows continuously while playing
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
     )..repeat();
+
+    // Subtle amplitude pulse when playing
+    _playPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    _playPulse = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _playPulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _waveController.dispose();
+    _playPulseController.dispose();
     super.dispose();
   }
 
@@ -697,6 +820,16 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
   Widget build(BuildContext context) {
     final progress =
         _dragValue ?? widget.state.progressFraction.clamp(0.0, 1.0);
+    final isPlaying = widget.state.isPlaying;
+
+    // Start/stop wave animation based on play state
+    if (isPlaying && !_waveController.isAnimating) {
+      _waveController.repeat();
+      _playPulseController.repeat(reverse: true);
+    } else if (!isPlaying && _waveController.isAnimating) {
+      _waveController.stop();
+      _playPulseController.stop();
+    }
 
     return Column(
       children: [
@@ -725,14 +858,25 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
             final value = (localX / box.size.width).clamp(0.0, 1.0);
             widget.notifier.seekToFraction(value);
           },
-          child: SizedBox(
-            height: 64,
-            child: CustomPaint(
-              painter: _WaveProgressPainter(
-                progress: progress,
-                accent: widget.accent,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([
+              _waveController,
+              _playPulseController,
+            ]),
+            builder: (_, __) => SizedBox(
+              height: 64,
+              child: CustomPaint(
+                painter: _WaveProgressPainter(
+                  progress: progress,
+                  accent: widget.accent,
+                  phase: _waveController.value,       // ← flowing phase
+                  amplitudePulse: isPlaying
+                      ? _playPulse.value
+                      : 1.0,                          // ← subtle pulse
+                  isPlaying: isPlaying,
+                ),
+                size: const Size(double.infinity, 64),
               ),
-              size: const Size(double.infinity, 64),
             ),
           ),
         ),
@@ -787,15 +931,21 @@ class _PremiumProgressBarState extends State<_PremiumProgressBar>
   }
 }
 
-// ── Static wave progress painter ───────────────────────────────
+// ── Wave progress painter ──────────────────────────────────────
 
 class _WaveProgressPainter extends CustomPainter {
   final double progress;
   final Color accent;
+  final double phase;
+  final double amplitudePulse;
+  final bool isPlaying;
 
   _WaveProgressPainter({
     required this.progress,
     required this.accent,
+    required this.phase,
+    required this.amplitudePulse,
+    required this.isPlaying,
   });
 
   @override
@@ -803,13 +953,15 @@ class _WaveProgressPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final midY = h / 2;
-    const amplitude = 9.0;
-    const frequency = 7.0; // number of full waves across track
+    final amplitude = 9.0 * amplitudePulse;
+    const frequency = 7.0;
     const steps = 400;
+
+    // Phase shift — flows forward while playing, frozen when paused
+    final phaseOffset = phase * 2 * pi;
 
     final progressX = w * progress;
 
-    // ── Full static wave — no phase, no animation ──────
     final playedPath = Path();
     final unplayedPath = Path();
     bool playedStarted = false;
@@ -819,11 +971,10 @@ class _WaveProgressPainter extends CustomPainter {
       final t = i / steps;
       final x = w * t;
 
-      // Same formula for both — static sine, no phase offset
-      final y = midY + amplitude * sin(2 * pi * frequency * t);
-
       if (x <= progressX) {
-        // Played portion — full amplitude
+        // ✅ Played — flowing with phase
+        final y = midY +
+            amplitude * sin(2 * pi * frequency * t - phaseOffset);
         if (!playedStarted) {
           playedPath.moveTo(x, y);
           playedStarted = true;
@@ -831,8 +982,9 @@ class _WaveProgressPainter extends CustomPainter {
           playedPath.lineTo(x, y);
         }
       } else {
-        // Unplayed portion — smaller amplitude, dimmer
-        final unplayedY = midY + amplitude * 0.45 * sin(2 * pi * frequency * t);
+        // ✅ Unplayed — static, NO phaseOffset
+        final unplayedY = midY +
+            amplitude * 0.4 * sin(2 * pi * frequency * t); // ← no phaseOffset
         if (!unplayedStarted) {
           unplayedPath.moveTo(x, unplayedY);
           unplayedStarted = true;
@@ -858,7 +1010,8 @@ class _WaveProgressPainter extends CustomPainter {
       canvas.drawPath(
         playedPath,
         Paint()
-          ..color = accent.withValues(alpha: 0.2)
+          ..color = accent.withValues(
+              alpha: isPlaying ? 0.25 : 0.15)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 10
           ..strokeCap = StrokeCap.round
@@ -866,7 +1019,7 @@ class _WaveProgressPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       );
 
-      // ── Draw played wave — sharp, bright ─────────────
+      // ── Draw played wave — sharp, bright ──────────────
       canvas.drawPath(
         playedPath,
         Paint()
@@ -881,19 +1034,22 @@ class _WaveProgressPainter extends CustomPainter {
     // ── Glowing dot at progress tip ────────────────────
     if (progress > 0 && progress < 1) {
       final dotX = progressX;
-      final dotY = midY + amplitude * sin(2 * pi * frequency * progress);
-
-      // Outer glow ring
+      final dotY = midY +
+          amplitude * sin(2 * pi * frequency * progress - phaseOffset);
       canvas.drawCircle(
         Offset(dotX, dotY),
-        10,
-        Paint()..color = accent.withValues(alpha: 0.12),
+        isPlaying ? 11 : 9,
+        Paint()
+          ..color = accent.withValues(
+              alpha: isPlaying ? 0.15 : 0.1),
       );
       // Mid ring
       canvas.drawCircle(
         Offset(dotX, dotY),
         6,
-        Paint()..color = accent.withValues(alpha: 0.3),
+        Paint()
+          ..color =
+          accent.withValues(alpha: isPlaying ? 0.35 : 0.25),
       );
       // White core
       canvas.drawCircle(
@@ -912,7 +1068,11 @@ class _WaveProgressPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveProgressPainter old) =>
-      old.progress != progress || old.accent != accent;
+      old.progress != progress ||
+          old.phase != phase ||
+          old.accent != accent ||
+          old.amplitudePulse != amplitudePulse ||
+          old.isPlaying != isPlaying;
 }
 
 // ── Premium controls ───────────────────────────────────────────

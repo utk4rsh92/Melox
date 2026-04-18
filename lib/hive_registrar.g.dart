@@ -5,12 +5,14 @@
 import 'package:hive_ce/hive.dart';
 import 'package:melox/domain/entities/eq_preset.dart';
 import 'package:melox/domain/entities/playlist.dart';
+import 'package:melox/domain/entities/radio_station.dart';
 import 'package:melox/domain/entities/song.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
     registerAdapter(EQPresetAdapter());
     registerAdapter(PlaylistAdapter());
+    registerAdapter(RadioStationAdapter());
     registerAdapter(SongAdapter());
   }
 }
@@ -19,6 +21,7 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
     registerAdapter(EQPresetAdapter());
     registerAdapter(PlaylistAdapter());
+    registerAdapter(RadioStationAdapter());
     registerAdapter(SongAdapter());
   }
 }
