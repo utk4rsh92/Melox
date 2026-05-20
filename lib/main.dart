@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'app.dart';
 import 'domain/entities/eq_preset.dart';
@@ -33,7 +34,7 @@ Future<void>  main()async {
     androidNotificationChannelName: 'Melox Audio',
     androidNotificationOngoing: true,       // can't swipe away while playing
     androidShowNotificationBadge: true,
-    androidNotificationIcon: 'drawable/ic_notification', // we'll add this later
+    androidNotificationIcon: 'mipmap/ic_launcher', // we'll add this later
     preloadArtwork: true,
   );
 
@@ -58,6 +59,9 @@ Future<void>  main()async {
 
   // 7. Seed built-in EQ presets on very first launch
   await _seedEQPresets();
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
   runApp(
     const ProviderScope(   // Riverpod needs this at the root
       child: MeloxApp(),

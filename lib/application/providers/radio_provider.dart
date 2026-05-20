@@ -2,6 +2,16 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:melox/application/providers/player_provider.dart';
+import '../../domain/entities/radio_station.dart';
+import '../../domain/repositories/radio_repository.dart';
+import '../../domain/repositories/radio_repository_impl.dart';
+
+import 'package:audio_service/audio_service.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:melox/application/providers/player_provider.dart';
 import '../../domain/entities/radio_station.dart';
 import '../../domain/repositories/radio_repository.dart';
 import '../../domain/repositories/radio_repository_impl.dart';
@@ -37,41 +47,185 @@ class RadioPlayerState {
       );
 }
 
+// class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
+//   late final AudioPlayer _player;
+//   bool _isChangingStation = false; // ← track when we're switching stations
+//
+//   @override
+//   RadioPlayerState build() {
+//     _player = AudioPlayer();
+//     _listenToStreams();
+//     ref.onDispose(() => _player.dispose());
+//     return const RadioPlayerState();
+//   }
+//
+//   void _listenToStreams() {
+//     // 1. Playing state
+//     _player.playingStream.listen((playing) {
+//       state = state.copyWith(isPlaying: playing);
+//     });
+//
+//     // 2. Processing state — only update buffering, never set error here
+//     _player.processingStateStream.listen((ps) {
+//       debugPrint('Radio processing state: $ps');
+//
+//       if (ps == ProcessingState.loading ||
+//           ps == ProcessingState.buffering) {
+//         state = state.copyWith(isBuffering: true, hasError: false);
+//       } else if (ps == ProcessingState.ready) {
+//         state = state.copyWith(isBuffering: false, hasError: false);
+//       }
+//       // ← idle fires on stop/reset — ignore it completely
+//       // error is handled only by playbackEventStream below
+//     });
+//
+//     // 3. Only set error from actual playback errors
+//     _player.playbackEventStream.listen(
+//           (_) {},
+//       onError: (Object e, StackTrace st) {
+//         // ← Only show error if we're NOT in the middle of switching stations
+//         if (!_isChangingStation) {
+//           debugPrint('Radio playback error: $e');
+//           state = state.copyWith(
+//             isBuffering: false,
+//             hasError: true,
+//             isPlaying: false,
+//           );
+//         }
+//       },
+//     );
+//   }
+//
+//   Future<void> playStation(RadioStation station) async {
+//     try {
+//       _isChangingStation = true; // ← suppress errors during switch
+//
+//       state = state.copyWith(
+//         currentStation: station,
+//         isBuffering: true,
+//         hasError: false,
+//         isPlaying: false,
+//       );
+//
+//       // Stop music player
+//       final musicState = ref.read(playerProvider);
+//       final musicPlayer = ref.read(playerProvider.notifier);
+//       if (musicState.isPlaying) {
+//         await musicPlayer.togglePlayPause();
+//       }
+//
+//       await _player.stop();
+//
+//       var url = station.streamUrl;
+//       if (url.isEmpty) {
+//         _isChangingStation = false;
+//         state = state.copyWith(isBuffering: false, hasError: true);
+//         return;
+//       }
+//
+//       if (url.startsWith('http://')) {
+//         url = url.replaceFirst('http://', 'https://');
+//       }
+//
+//       debugPrint('Playing radio stream: $url');
+//
+//       await _player.setAudioSource(
+//         AudioSource.uri(
+//           Uri.parse(url),
+//           tag: MediaItem(
+//             id: station.stationUuid,
+//             title: station.name,
+//             artist: station.genre.isNotEmpty
+//                 ? station.genre
+//                 : station.country,
+//             artUri: station.logoUrl.isNotEmpty &&
+//                 station.logoUrl.startsWith('https')
+//                 ? Uri.parse(station.logoUrl)
+//                 : null,
+//             displayTitle: station.name,
+//             displaySubtitle: '🔴 LIVE',
+//           ),
+//         ),
+//       );
+//
+//       _isChangingStation = false; // ← done switching, re-enable error detection
+//       await _player.play();
+//     } catch (e) {
+//       _isChangingStation = false;
+//       debugPrint('Radio play error: $e');
+//       state = state.copyWith(isBuffering: false, hasError: true);
+//     }
+//   }
+//
+//   Future<void> stop() async {
+//     _isChangingStation = true; // ← suppress idle error on stop
+//     await _player.stop();
+//     _isChangingStation = false;
+//     state = const RadioPlayerState();
+//   }
+//
+//   Future<void> togglePlayPause() async {
+//     if (_player.playing) {
+//       await _player.pause();
+//     } else {
+//       final musicState = ref.read(playerProvider);
+//       final musicPlayer = ref.read(playerProvider.notifier);
+//       if (musicState.isPlaying) {
+//         await musicPlayer.togglePlayPause();
+//       }
+//       await _player.play();
+//     }
+//   }
+// }
+
 class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
-  late final AudioPlayer _player;
+  // ← NO separate AudioPlayer — reuse music player's instance
+  AudioPlayer get _player =>
+      ref.read(playerProvider.notifier).player;
 
   @override
   RadioPlayerState build() {
-    // ← Create a PLAIN AudioPlayer — NOT wrapped by just_audio_background
-    // This avoids the 127.0.0.1 proxy issue entirely
-    _player = AudioPlayer();
+    // ← No player creation here — we use the shared one
     _listenToStreams();
-    ref.onDispose(() => _player.dispose());
     return const RadioPlayerState();
   }
 
+  void clearStation() {
+    state = const RadioPlayerState();
+  }
   void _listenToStreams() {
     _player.playingStream.listen((playing) {
-      state = state.copyWith(isPlaying: playing);
-    });
-
-    _player.processingStateStream.listen((ps) {
-      debugPrint('Radio processing state: $ps');
-      state = state.copyWith(
-        isBuffering: ps == ProcessingState.buffering ||
-            ps == ProcessingState.loading,
-      );
-      // Only set error if we were actually trying to play
-      if (ps == ProcessingState.idle &&
-          state.currentStation != null &&
-          state.isBuffering) {
-        state = state.copyWith(isBuffering: false, hasError: true);
+      // Only update radio state if radio is active
+      if (state.currentStation != null) {
+        state = state.copyWith(isPlaying: playing);
       }
     });
 
-    _player.playerStateStream.listen((ps) {
-      debugPrint('Radio player state: $ps');
+    _player.processingStateStream.listen((ps) {
+      if (state.currentStation == null) return;
+      debugPrint('Radio processing state: $ps');
+
+      if (ps == ProcessingState.loading ||
+          ps == ProcessingState.buffering) {
+        state = state.copyWith(isBuffering: true, hasError: false);
+      } else if (ps == ProcessingState.ready) {
+        state = state.copyWith(isBuffering: false, hasError: false);
+      }
     });
+
+    _player.playbackEventStream.listen(
+          (_) {},
+      onError: (Object e, StackTrace st) {
+        if (state.currentStation != null) {
+          debugPrint('Radio playback error: $e');
+          state = state.copyWith(
+            isBuffering: false,
+            hasError: true,
+            isPlaying: false,
+          );
+        }
+      },
+    );
   }
 
   Future<void> playStation(RadioStation station) async {
@@ -83,6 +237,7 @@ class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
         isPlaying: false,
       );
 
+      // Stop current music playback
       await _player.stop();
 
       var url = station.streamUrl;
@@ -91,15 +246,12 @@ class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
         return;
       }
 
-      // Force HTTPS
       if (url.startsWith('http://')) {
         url = url.replaceFirst('http://', 'https://');
       }
 
       debugPrint('Playing radio stream: $url');
 
-      // ← Must use AudioSource.uri with MediaItem tag
-      // just_audio_background intercepts ALL AudioPlayer instances
       await _player.setAudioSource(
         AudioSource.uri(
           Uri.parse(url),
@@ -120,11 +272,15 @@ class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
       );
 
       await _player.play();
-      state = state.copyWith(isBuffering: false, isPlaying: true);
     } catch (e) {
       debugPrint('Radio play error: $e');
       state = state.copyWith(isBuffering: false, hasError: true);
     }
+  }
+
+  Future<void> stop() async {
+    await _player.stop();
+    state = const RadioPlayerState();
   }
 
   Future<void> togglePlayPause() async {
@@ -133,11 +289,6 @@ class RadioPlayerNotifier extends Notifier<RadioPlayerState> {
     } else {
       await _player.play();
     }
-  }
-
-  Future<void> stop() async {
-    await _player.stop();
-    state = const RadioPlayerState();
   }
 }
 

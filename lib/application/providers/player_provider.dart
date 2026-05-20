@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:melox/application/providers/radio_provider.dart';
 
 import '../../core/services/equalizer_service.dart';
 import '../../domain/entities/song.dart';
@@ -10,7 +11,7 @@ import 'player_state.dart';
 
 class PlayerNotifier extends Notifier<MeloxPlayerState> {
   late final AudioPlayer _player;
-
+  AudioPlayer get player => _player;
   @override
   MeloxPlayerState build() {
     _player = AudioPlayer();
@@ -64,10 +65,12 @@ class PlayerNotifier extends Notifier<MeloxPlayerState> {
   }
 
   Future<void> playSong(Song song, {List<Song>? queue}) async {
+    final radioNotifier = ref.read(radioPlayerProvider.notifier);
+    await radioNotifier.stop();
     final playQueue = queue ?? [song];
     final index = playQueue.indexWhere((s) => s.id == song.id);
     final safeIndex = index == -1 ? 0 : index;
-
+    ref.read(radioPlayerProvider.notifier).clearStation();
     final audioSource = ConcatenatingAudioSource(
       children: playQueue.map((s) => AudioSource.uri(
         Uri.parse(s.uri),
@@ -101,6 +104,8 @@ class PlayerNotifier extends Notifier<MeloxPlayerState> {
     if (_player.playing) {
       await _player.pause();
     } else {
+      final radioNotifier = ref.read(radioPlayerProvider.notifier);
+      await radioNotifier.stop();
       await _player.play();
     }
   }
@@ -169,7 +174,6 @@ class PlayerNotifier extends Notifier<MeloxPlayerState> {
     }
   }
 
-  AudioPlayer get player => _player;
 }
 
 final playerProvider = NotifierProvider<PlayerNotifier, MeloxPlayerState>(
